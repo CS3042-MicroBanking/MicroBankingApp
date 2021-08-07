@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:micro_banking_app/database_helper.dart';
+import 'package:micro_banking_app/globals.dart' as gl;
 
 class WithdrawDeposit extends StatefulWidget {
   final String uname;
@@ -10,13 +11,13 @@ class WithdrawDeposit extends StatefulWidget {
 
 class _WithdrawDepositState extends State<WithdrawDeposit> {
   DatabaseHelper databaseHelper = DatabaseHelper();
-  List<String> accList = [];
+  Map<String, dynamic> accMap = Map();
   List<Map<String, dynamic>> accs;
-  List<double> balances = [];
-  List<double> mins = [];
   final _amountTextController = TextEditingController();
+  final _accountTextController = TextEditingController();
   String _selectedAccount;
-  int _selectedIndex;
+  bool isJoint = false;
+  double jointBalance = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +26,12 @@ class _WithdrawDepositState extends State<WithdrawDeposit> {
       res.then((accounts) {
         accs = accounts;
         for (var i in accounts) {
-          accList.add(i['acc_id'].toString());
-          balances.add(i['balance']);
-          mins.add(i['min']);
+          accMap[i['acc_id'].toString()] = Map.of(i);
         }
         setState(() {});
       });
     }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Withdraw/Deposit'),
@@ -42,10 +42,30 @@ class _WithdrawDepositState extends State<WithdrawDeposit> {
           children: [
             Row(
               children: [
-                Padding(
-                    padding: EdgeInsets.all(10), child: Text("Account ID:")),
-                getAccountsDropDownButton()
+                Text("Joint "),
+                Checkbox(
+                  onChanged: (val) {
+                    setState(() {
+                      isJoint = val;
+                    });
+                  },
+                  value: isJoint,
+                ),
               ],
+            ),
+            TextField(
+              keyboardType: TextInputType.number,
+              onChanged: (id) {
+                setState(() {
+                  _selectedAccount = id;
+                  if (isJoint) getBalance(id);
+                });
+              },
+              controller: _accountTextController,
+              decoration: InputDecoration(
+                  labelText: 'Account',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(5.0))),
             ),
             Row(children: [
               Expanded(
@@ -58,43 +78,73 @@ class _WithdrawDepositState extends State<WithdrawDeposit> {
                           borderRadius: BorderRadius.circular(5.0))),
                 ),
               ),
-              if (_selectedAccount != null)
+              if (_selectedAccount != null &&
+                  (isJoint || accMap.containsKey(_selectedAccount)))
                 Padding(
                     padding: EdgeInsets.all(10),
-                    child: Text("Balance: " +
-                        balances[_selectedIndex].toString() +
-                        ", Min: " +
-                        mins[_selectedIndex].toString()))
+                    child: isJoint
+                        ? Text("Balance: " + jointBalance.toString())
+                        : Text("Balance: " +
+                            accMap[_selectedAccount]['balance'].toString() +
+                            ", Min: " +
+                            accMap[_selectedAccount]['min'].toString()))
             ]),
             Row(
               children: [
                 RaisedButton(
                   onPressed: () {
+                    if (gl.status == 'fc-' + _accountTextController.text ||
+                        gl.status == 'o-' + _accountTextController.text) {
+                      print("Account currently in use");
+                    }
                     double change = double.parse(_amountTextController.text);
-                    if (balances[_selectedIndex] - change >=
-                        mins[_selectedIndex]) {
-                      var res = databaseHelper.updateAccount(
+                    if (isJoint) {
+                      if (jointBalance - change >= 5000) {
+                        var response = databaseHelper.updateAccCentralDB(
+                            _selectedAccount, -change);
+                        response.then((res) {
+                          print("Response: " + res);
+                        });
+                      } else
+                        print("Insufficient Balance");
+                    } else if (accMap[_selectedAccount]['balance'] - change >=
+                        accMap[_selectedAccount]['min']) {
+                      var res = databaseHelper.updateAccountBy(
                           int.parse(_selectedAccount), -change);
                       res.then((_) {
                         setState(() {
-                          balances[_selectedIndex] -= change;
+                          accMap[_selectedAccount]['balance'] -= change;
                         });
                       });
                     } else
                       print("Insufficient Balance");
+                    Navigator.pop(context);
                   },
                   child: Text("Withdraw"),
                 ),
                 RaisedButton(
                   onPressed: () {
+                    /*if (gl.status == 'o-' + _accountTextController.text) {
+                      print(
+                          "Account being used elsewhere. Please return to previous screen");
+                    }*/
                     double change = double.parse(_amountTextController.text);
-                    var res = databaseHelper.updateAccount(
-                        int.parse(_selectedAccount), change);
-                    res.then((_) {
-                      setState(() {
-                        balances[_selectedIndex] += change;
+                    if (isJoint) {
+                      var response = databaseHelper.updateAccCentralDB(
+                          _selectedAccount, change);
+                      response.then((res) {
+                        print("Response: " + res);
                       });
-                    });
+                    } else {
+                      var res = databaseHelper.updateAccountBy(
+                          int.parse(_selectedAccount), change);
+                      res.then((_) {
+                        setState(() {
+                          accMap[_selectedAccount]['balance'] += change;
+                        });
+                      });
+                    }
+                    Navigator.pop(context);
                   },
                   child: Text("Deposit"),
                 )
@@ -106,24 +156,20 @@ class _WithdrawDepositState extends State<WithdrawDeposit> {
     );
   }
 
-  Widget getAccountsDropDownButton() {
-    if (accs == null) return SizedBox.shrink();
-
-    return new DropdownButton<String>(
-      hint: Text("Choose account"),
-      value: _selectedAccount,
-      items: accList.map((String value) {
-        return new DropdownMenuItem<String>(
-          value: value,
-          child: new Text(value),
-        );
-      }).toList(),
-      onChanged: (val) {
+  void getBalance(String accID) {
+    var res = databaseHelper.getAccCentralDB(accID);
+    res.then((result) {
+      print(result);
+      if (result != "account not found") {
         setState(() {
-          _selectedAccount = val;
-          _selectedIndex = _selectedIndex;
+          if (result.split(",")[1] == "joint")
+            jointBalance = double.parse(result.split(",")[0]);
+          else
+            jointBalance = 0;
         });
-      },
-    );
+      } else {
+        jointBalance = 0;
+      }
+    });
   }
 }

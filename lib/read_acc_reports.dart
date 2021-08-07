@@ -55,20 +55,7 @@ class _ReadAccountReportsState extends State<ReadAccountReports> {
                     children: [
                       for (var i in accLogs[_selectedAcc])
                         Card(
-                          child:
-                              /*Text((i['amount'] < 0
-                                    ? "Withdrew"
-                                    : "Deposited") +
-                                " an amount of " +
-                                (i['amount'] < 0
-                                    ? (-i['amount']).toString()
-                                    : i['amount'].toString()) +
-                                " on " +
-                                i['datetime'].split(' ')[0] +
-                                " at " +
-                                i['datetime'].split(' ')[
-                                    1])*/
-                              Column(
+                          child: Column(
                             children: [
                               Text(
                                   "Transaction ID: " + i['trxn_id'].toString()),

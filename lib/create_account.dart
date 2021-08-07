@@ -11,12 +11,12 @@ class _CreateAccountState extends State<CreateAccount> {
   List<Map<String, dynamic>> users;
   DatabaseHelper databaseHelper = DatabaseHelper();
   String _selectedAccountType;
-  String _selectedUser;
-  String _selectedJUser;
   List<String> typeList = [];
-  List<String> userList = [];
+  Set<String> userList = {};
   List<double> mins;
   final _balanceTextController = TextEditingController();
+  final _unameTextController = TextEditingController();
+  final _jUnameTextController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +31,9 @@ class _CreateAccountState extends State<CreateAccount> {
       var userSet = databaseHelper.getUserMapList();
       userSet.then((usrs) {
         users = usrs;
+        for (var i in users) {
+          userList.add(i['uname']);
+        }
         setState(() {});
       });
     }
@@ -50,21 +53,20 @@ class _CreateAccountState extends State<CreateAccount> {
                   getInterestsDropDownButton()
                 ],
               ),
-              Row(
-                children: [
-                  Padding(
-                      padding: EdgeInsets.all(10), child: Text("Username:")),
-                  getUsersDropDownButton(false)
-                ],
+              TextField(
+                controller: _unameTextController,
+                decoration: InputDecoration(
+                    labelText: 'Username',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5.0))),
               ),
               if (_selectedAccountType == 'joint')
-                Row(
-                  children: [
-                    Padding(
-                        padding: EdgeInsets.all(10),
-                        child: Text("Joint username:")),
-                    getUsersDropDownButton(true)
-                  ],
+                TextField(
+                  controller: _jUnameTextController,
+                  decoration: InputDecoration(
+                      labelText: 'Username 2',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(5.0))),
                 ),
               Row(children: [
                 Expanded(
@@ -87,30 +89,54 @@ class _CreateAccountState extends State<CreateAccount> {
               RaisedButton(
                 onPressed: () {
                   double min = mins[typeList.indexOf(_selectedAccountType)];
-                  if (double.parse(_balanceTextController.text) > min) {
-                    var res = databaseHelper.insertAcc(_selectedAccountType,
-                        double.parse(_balanceTextController.text));
-                    res.then((id) {
-                      var res1 =
-                          databaseHelper.inserUserToAcc(_selectedUser, id);
-                      res1.then((res_0) {}).catchError((e) {
-                        print("error: " + e.toString());
-                      });
-                      print("your account id is " + id.toString());
-                      _balanceTextController.clear();
-                      _selectedUser = null;
-                      if (_selectedAccountType == 'joint') {
-                        databaseHelper.inserUserToAcc(_selectedJUser, id);
-                        _selectedJUser = null;
-                      }
-                    }).catchError((e) {
-                      print("error: " + e.toString());
-                    });
+                  double balance;
+                  try {
+                    balance = double.parse(_balanceTextController.text);
+                  } catch (error) {
+                    print("Balance not a double");
+                    return;
                   }
-                  databaseHelper.insertAccCentralDB(
-                      _selectedUser,
-                      _selectedAccountType,
-                      double.parse(_balanceTextController.text));
+                  if (balance > min) {
+                    var accIDFuture = databaseHelper.insertAccCentralDB(
+                        _unameTextController.text,
+                        _selectedAccountType,
+                        double.parse(_balanceTextController.text),
+                        jUname: _jUnameTextController.text);
+                    accIDFuture.then((accID) {
+                      print("accID: " + accID);
+                      if (_selectedAccountType != 'joint') {
+                        var check = databaseHelper.insertAcc(
+                            int.parse(accID), _selectedAccountType, balance);
+                        check.then((val) {
+                          if (!userList.contains(_unameTextController.text)) {
+                            var user = databaseHelper
+                                .getUserCentralDB(_unameTextController.text);
+                            user.then((details) {
+                              try {
+                                var userDet = details.split(',');
+                                var added = databaseHelper.insertUser(
+                                    _unameTextController.text,
+                                    userDet[0],
+                                    userDet[1]);
+                                added.then((result) {
+                                  databaseHelper.inserUserToAcc(
+                                      _unameTextController.text,
+                                      int.parse(accID));
+                                });
+                              } catch (err) {
+                                print("Something went wrong: " + err);
+                              }
+                            });
+                          } else
+                            databaseHelper.inserUserToAcc(
+                                _unameTextController.text, int.parse(accID));
+                        });
+                      }
+                    });
+                    Navigator.pop(context);
+                  } else {
+                    print("Balance insufficient");
+                  }
                 },
                 child: Text("Add account"),
               ),
@@ -145,39 +171,6 @@ class _CreateAccountState extends State<CreateAccount> {
         setState(() {
           _selectedAccountType = val;
         });
-      },
-    );
-  }
-
-  Widget getUsersDropDownButton(bool isJoin) {
-    if (userList.length == 0) {
-      userList = [];
-      if (users == null) {
-        return SizedBox.shrink();
-      }
-      for (var i in users) {
-        userList.add(i['uname']);
-      }
-    }
-
-    return new DropdownButton<String>(
-      hint: Text(isJoin ? "Choose joint user" : "Choose user"),
-      value: isJoin ? _selectedJUser : _selectedUser,
-      items: userList.map((String value) {
-        return new DropdownMenuItem<String>(
-          value: value,
-          child: new Text(value),
-        );
-      }).toList(),
-      onChanged: (val) {
-        if (_selectedUser != val) {
-          setState(() {
-            if (isJoin)
-              _selectedJUser = val;
-            else
-              _selectedUser = val;
-          });
-        }
       },
     );
   }
