@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "960226001048",
+    "project_id": "db-status-67de9",
+    "storage_bucket": "db-status-67de9.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:960226001048:android:41f4ad3475fac5224090ed",
+        "android_client_info": {
+          "package_name": "com.example.micro_banking_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "960226001048-iva3jcpt49qf4efqf1uqngchf89kakhr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.micro_banking_app",
+            "certificate_hash": "e005a9edb0e939d7a2959f71f8e093ca1b43d5a7"
+          }
+        },
+        {
+          "client_id": "960226001048-6fjd4g0l30n4ot7ioulgeo0l2ovlqj6h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbKF2S-SsI8rITABFg3gCN_RfGEYGfJSk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "960226001048-6fjd4g0l30n4ot7ioulgeo0l2ovlqj6h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

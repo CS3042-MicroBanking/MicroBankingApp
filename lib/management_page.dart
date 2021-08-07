@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:micro_banking_app/create_account.dart';
+import 'package:micro_banking_app/create_fd_account.dart';
 import 'package:micro_banking_app/delete_account.dart';
-import 'package:micro_banking_app/read_acc_reports.dart';
-import 'package:micro_banking_app/read_all_reports.dart';
+import 'package:micro_banking_app/read_reports.dart';
 
 class ManagementPage extends StatefulWidget {
   final String uname;
@@ -23,7 +23,11 @@ class _ManagementPageState extends State<ManagementPage> {
         children: [
           RaisedButton(
             onPressed: navigateToCreateAccount,
-            child: Text("Create Account"),
+            child: Text("Create Savings Account"),
+          ),
+          RaisedButton(
+            onPressed: navigateToCreateFDAccount,
+            child: Text("Create FD Account"),
           ),
           RaisedButton(
             onPressed: navigateToDeleteAccount,
@@ -31,12 +35,8 @@ class _ManagementPageState extends State<ManagementPage> {
           ),
           RaisedButton(
             onPressed: navigateToReadReport,
-            child: Text("Read Account Reports"),
+            child: Text("Read Reports"),
           ),
-          RaisedButton(
-            onPressed: navigateToReadAllReports,
-            child: Text("Read All Reports"),
-          )
         ],
       ),
     );
@@ -48,6 +48,12 @@ class _ManagementPageState extends State<ManagementPage> {
     }));
   }
 
+  void navigateToCreateFDAccount() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (context) {
+      return CreateFDAccount();
+    }));
+  }
+
   void navigateToDeleteAccount() async {
     await Navigator.push(context, MaterialPageRoute(builder: (context) {
       return DeleteAccount();
@@ -56,13 +62,7 @@ class _ManagementPageState extends State<ManagementPage> {
 
   void navigateToReadReport() async {
     await Navigator.push(context, MaterialPageRoute(builder: (context) {
-      return ReadAccountReports();
-    }));
-  }
-
-  void navigateToReadAllReports() async {
-    await Navigator.push(context, MaterialPageRoute(builder: (context) {
-      return ReadAllReports();
+      return ReadReports();
     }));
   }
 }

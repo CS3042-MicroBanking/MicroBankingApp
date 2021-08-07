@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:micro_banking_app/database_helper.dart';
+import 'globals.dart' as gl;
 
 class DeleteAccount extends StatefulWidget {
   @override
@@ -8,9 +12,10 @@ class DeleteAccount extends StatefulWidget {
 
 class _DeleteAccountState extends State<DeleteAccount> {
   DatabaseHelper databaseHelper = DatabaseHelper();
-  String _selectedAccount;
   List<int> accList = [];
   List<Map<String, dynamic>> accounts;
+  final _accTextController = TextEditingController();
+  final dbRef = FirebaseDatabase.instance.reference();
 
   @override
   Widget build(BuildContext context) {
@@ -30,26 +35,33 @@ class _DeleteAccountState extends State<DeleteAccount> {
         body: Padding(
             padding: EdgeInsets.all(10),
             child: Column(children: [
-              Row(
-                children: [
-                  Padding(
-                      padding: EdgeInsets.all(10), child: Text("Account id:")),
-                  getAccountDropDownButton()
-                ],
+              TextField(
+                controller: _accTextController,
+                decoration: InputDecoration(
+                    labelText: 'Account ID',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(5.0))),
               ),
               RaisedButton(
                 onPressed: () {
-                  if (_selectedAccount != null) {
-                    var res = databaseHelper
-                        .deleteUserToAcc(int.parse(_selectedAccount));
-                    res.then((_) {
-                      var res1 = databaseHelper
-                          .deleteAccount(int.parse(_selectedAccount));
-                      res1.then((_) {
-                        setState(() {
-                          Navigator.pop(context, true);
-                          _selectedAccount = null;
-                        });
+                  if (_accTextController.text != null) {
+                    var deleteStatus = databaseHelper
+                        .deleteAccCentralDB(_accTextController.text);
+                    deleteStatus.then((status) {
+                      if (status != '0') {
+                        print("Deletion failed");
+                        return;
+                      }
+                    });
+                    var res = waitWhile();
+                    res.then((result) {
+                      var id = databaseHelper
+                          .getAccAgentCentralDB(_accTextController.text);
+                      id.then((agentID) {
+                        String status = "b-$agentID-" + _accTextController.text;
+                        dbRef.update({"status": status});
+                        gl.status = status;
+                        Navigator.pop(context);
                       });
                     });
                   }
@@ -59,31 +71,18 @@ class _DeleteAccountState extends State<DeleteAccount> {
             ])));
   }
 
-  Widget getAccountDropDownButton() {
-    if (accList.length == 0) {
-      accList = [];
-      if (accounts == null) {
-        return SizedBox.shrink();
-      }
-      for (var i in accounts) {
-        accList.add(i['acc_id']);
+  Future waitWhile([Duration pollInterval = Duration.zero]) {
+    var completer = new Completer();
+    check() {
+      if (gl.status == '0') {
+        print("completed");
+        completer.complete();
+      } else {
+        new Timer(pollInterval, check);
       }
     }
 
-    return new DropdownButton<String>(
-      hint: Text("Choose account id"),
-      value: _selectedAccount,
-      items: accList.map((int value) {
-        return new DropdownMenuItem<String>(
-          value: value.toString(),
-          child: new Text(value.toString()),
-        );
-      }).toList(),
-      onChanged: (val) {
-        setState(() {
-          _selectedAccount = val;
-        });
-      },
-    );
+    check();
+    return completer.future;
   }
 }
